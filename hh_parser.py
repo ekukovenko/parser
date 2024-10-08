@@ -4,30 +4,71 @@ from bs4 import BeautifulSoup
 from parser import Parser
 
 class HHParser(Parser):
-    def __init__(self)->None:
-        self.url = "https://spb.hh.ru/"
-        self.searchbar_xpath = '//*[@id="a11y-search-input"]'
-        self.block_button_xpath = '//*[@class="bloko-modal-close-button"]'
-        self.source = "hh.ru"
+    def __init__(self) -> None:
+        self.url = "https://www.petshop.ru/adverts/dogs/"
+        self.source = "petshop.ru"
         self.scroll = True
 
-    def get_product_list(self, job_name: str) -> None:
-        # Получаем HTML контент страницы
-        content = super().get_page_content(job_name=job_name, url=self.url,
-                                           searchbar_xpath=self.searchbar_xpath, block_button_xpath=self.block_button_xpath, scroll=self.scroll)
-        soup = BeautifulSoup(content, features="lxml")
+    def clean_text(self, text: str) -> str:
+        text = text.replace(';', '').strip()
+        text = re.sub(r'\s+', ' ', text)
+        return text
 
-        names=[]
+    def get_product_list(self) -> None:
+        content_list = super().get_page_content(url=self.url, scroll=self.scroll)
 
-        raw_list = soup.find_all('div', attrs={'class': 'magritte-card___bhGKz_6-1-5 magritte-card-border-radius-24___o72BE_6-1-5 magritte-card-stretched___0Uc0J_6-1-5 magritte-card-action___4A43B_6-1-5 magritte-card-shadow-on-hover___BoRL3_6-1-5 magritte-card-with-border___3KsrG_6-1-5'})
+        names = []
+        descriptions = []
+        prices = []
+        breeds = []
+        regions = []
+        dates = []
+        images = []
 
-        for raw in raw_list:
-            soup = BeautifulSoup(str(raw), features='lxml')
-            name = soup.find('a', attrs={'class': "magritte-text___tkzIl_4-3-2"}).get_text()
-            names.append(name)
+        for content in content_list:
+            soup = BeautifulSoup(content, features="lxml")
 
-        df = pd.DataFrame({
-            'Name': names,
-        })
-        df.to_csv(f'{job_name}_dataset.csv', index=False)
-        print(f'Data saved to {job_name}_dataset.csv')
+            raw_list = soup.find_all('div', attrs={'class': 'articles-item ng-scope'})
+
+            for idx, raw in enumerate(raw_list, 1):
+                soup = BeautifulSoup(str(raw), features='lxml')
+                name = self.clean_text(soup.find('a', attrs={'class': "ng-binding"}).get_text())
+                description = self.clean_text(soup.find('div', attrs={'class': "text ng-binding"}).get_text())
+                price = self.clean_text(soup.find('div', attrs={'class': 'price ng-scope'}).find('span', attrs={
+                    'class': 'ng-binding'}).get_text()) if soup.find('div',
+                                                                     attrs={'class': 'price ng-scope'}) else "N/A"
+                breed = self.clean_text(soup.find('div', attrs={'class': 'breed'}).find('span', attrs={
+                    'class': 'ng-binding'}).get_text()) if soup.find('div', attrs={'class': 'breed'}) else "N/A"
+                region = self.clean_text(soup.find('div', attrs={'class': 'region'}).find('span', attrs={
+                    'class': 'ng-binding'}).get_text()) if soup.find('div', attrs={'class': 'region'}) else "N/A"
+                date = self.clean_text(soup.find('div', attrs={'class': 'date'}).find('span', attrs={
+                    'class': 'ng-binding'}).get_text()) if soup.find('div', attrs={'class': 'date'}) else "N/A"
+                img_div = soup.find('div', attrs={'class': 'articles-img'})
+                if img_div:
+                    img_tag = img_div.find('img')
+                    img = img_tag['ng-src'] if img_tag and 'ng-src' in img_tag.attrs else "N/A"
+                else:
+                    img = "N/A"
+
+                names.append(name)
+                descriptions.append(description)
+                prices.append(price)
+                breeds.append(breed)
+                regions.append(region)
+                dates.append(date)
+                images.append(img)
+
+        data = {
+            'name': names,
+            'description': descriptions,
+            'price': prices,
+            'breed': breeds,
+            'region': regions,
+            'date': dates,
+            'image_url': images
+        }
+        df = pd.DataFrame(data)
+
+        df.to_csv('dogs_dataset.csv', index=False, encoding='utf-8-sig')
+
+        print('Data saved to dogs_dataset.csv in structured format.')

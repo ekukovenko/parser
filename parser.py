@@ -9,44 +9,60 @@ from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from item import Item
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 class Parser(ABC):
+    @abstractmethod
+    def get_product_list(self) -> List[Item]:
+        pass
+
     def get_page_content(self,
-                         job_name: str,
                          url: str,
-                         searchbar_xpath: str,
-                         block_button_xpath: str,
                          scroll: bool = False,
                          scroll_timeout: Union[int, float] = 0.3) -> str:
         options = Options()
         options.add_argument("window-size=1920,1080")
         service = Service(ChromeDriverManager().install())
-        with webdriver.Chrome(service=service, options=options) as driver:
+
+        # Сохраняем контент всех страниц в список
+        all_content = []
+
+        with (webdriver.Chrome(service=service, options=options) as driver):
             driver.get(url)
-            sleep(5)
-
-            # Переопределяем элемент поиска каждый раз перед взаимодействием
-            search_element = driver.find_element(By.XPATH, searchbar_xpath)
-            search_element.click()
-            sleep(1)
-            search_element.clear()
-            search_element.send_keys(job_name)
-            search_element.send_keys(Keys.ENTER)
-            sleep(2)
-
-            # Закрываем модальное окно, если оно появляется
-            try:
-                block_button_element = driver.find_element(By.XPATH, block_button_xpath)
-                block_button_element.click()
-            except Exception as e:
-                print(f"No modal to close: {e}")
-
-            # Добавляем ещё одно ожидание перед попыткой прокрутки
             if scroll:
-                for i in range(5):
-                    sleep(scroll_timeout)
-                    driver.execute_script(f"window.scrollTo({i * 300}, {(i + 1) * 300})")
+                current_page = 1
+                max_pages = 2
+                while current_page <= max_pages:
+                    sleep(2)
+                    # Скроллим страницу
+                    for i in range(15):
+                        sleep(scroll_timeout)
+                        driver.execute_script(f"window.scrollTo({i * 300}, {(i + 1) * 300})")
+                        sleep(1)
 
-            # Возвращаем контент страницы
-            content = driver.page_source
-            return content
+                    # Получаем контент страницы и сохраняем его
+                    page_content = driver.page_source
+                    all_content.append(page_content)
+
+                    # Скроллим обратно наверх
+                    driver.execute_script("window.scrollTo(0, 0);")
+                    sleep(2)
+
+                    # Находим и кликаем на кнопку "Следующая"
+                    try:
+                        next_button = WebDriverWait(driver, 20).until(
+                            EC.element_to_be_clickable(
+                                (By.XPATH, '//*[@id="main"]/div/div[2]/div/article/div/section[1]/div[3]/a[9]')
+                            )
+                        )
+                        next_button.click()
+                        current_page += 1
+                    except Exception as e:
+                        print(f"Не удалось найти кнопку 'Следующая' или произошла ошибка: {e}")
+                        break
+
+        # Возвращаем объединённый контент всех страниц
+        return all_content
