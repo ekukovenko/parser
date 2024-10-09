@@ -1,6 +1,4 @@
-import pandas as pd
+import dogs_parser
 
-import hh_parser
-
-parser = hh_parser.HHParser()
+parser = dogs_parser.DogsParser()
 parser.get_product_list()

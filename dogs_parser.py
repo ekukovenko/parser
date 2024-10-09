@@ -3,7 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from parser import Parser
 
-class HHParser(Parser):
+class DogsParser(Parser):
     def __init__(self) -> None:
         self.url = "https://www.petshop.ru/adverts/dogs/"
         self.source = "petshop.ru"
