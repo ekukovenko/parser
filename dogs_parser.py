@@ -3,6 +3,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from parser import Parser
 
+
 class DogsParser(Parser):
     def __init__(self) -> None:
         self.url = "https://www.petshop.ru/adverts/dogs/"
@@ -14,13 +15,28 @@ class DogsParser(Parser):
         text = re.sub(r'\s+', ' ', text)
         return text
 
+    def parse_price(self, price_str: str) -> int:
+        price_str = re.sub(r'[^\d\-]', '', price_str)
+
+        if '-' in price_str:
+            low, high = map(int, price_str.split('-'))
+            if high < 1000:
+                high *= 1000
+            return high
+        else:
+            price = int(price_str)
+            if price < 1000:
+                price *= 1000
+            return price
+
     def get_product_list(self) -> None:
         content_list = super().get_page_content(url=self.url, scroll=self.scroll)
 
         names = []
-        descriptions = []
-        prices = []
         breeds = []
+        rare_gen = []
+        prices = []
+        descriptions = []
         regions = []
         dates = []
         images = []
@@ -34,9 +50,11 @@ class DogsParser(Parser):
                 soup = BeautifulSoup(str(raw), features='lxml')
                 name = self.clean_text(soup.find('a', attrs={'class': "ng-binding"}).get_text())
                 description = self.clean_text(soup.find('div', attrs={'class': "text ng-binding"}).get_text())
-                price = self.clean_text(soup.find('div', attrs={'class': 'price ng-scope'}).find('span', attrs={
-                    'class': 'ng-binding'}).get_text()) if soup.find('div',
-                                                                     attrs={'class': 'price ng-scope'}) else "N/A"
+
+                raw_price = soup.find('div', attrs={'class': 'price ng-scope'}).find('span', attrs={
+                    'class': 'ng-binding'}).get_text() if soup.find('div', attrs={'class': 'price ng-scope'}) else "N/A"
+                price = self.parse_price(self.clean_text(raw_price)) if raw_price != "N/A" else "N/A"
+
                 breed = self.clean_text(soup.find('div', attrs={'class': 'breed'}).find('span', attrs={
                     'class': 'ng-binding'}).get_text()) if soup.find('div', attrs={'class': 'breed'}) else "N/A"
                 region = self.clean_text(soup.find('div', attrs={'class': 'region'}).find('span', attrs={
@@ -50,22 +68,26 @@ class DogsParser(Parser):
                 else:
                     img = "N/A"
 
+                gen = "ген" in description.lower()
+
                 names.append(name)
-                descriptions.append(description)
-                prices.append(price)
                 breeds.append(breed)
+                rare_gen.append(gen)
+                prices.append(price)
+                descriptions.append(description)
                 regions.append(region)
                 dates.append(date)
                 images.append(img)
 
         data = {
             'name': names,
-            'description': descriptions,
-            'price': prices,
             'breed': breeds,
+            'rare_gen': rare_gen,
+            'price': prices,
+            'description': descriptions,
             'region': regions,
             'date': dates,
-            'image_url': images
+            'image_url': images,
         }
         df = pd.DataFrame(data)
 
