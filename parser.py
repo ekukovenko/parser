@@ -31,7 +31,7 @@ class Parser(ABC):
             driver.get(url)
             if scroll:
                 current_page = 1
-                max_pages = 5
+                max_pages = 52
                 while current_page <= max_pages:
                     sleep(2)
                     for i in range(18):
