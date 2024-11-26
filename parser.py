@@ -17,8 +17,8 @@ class Parser(ABC):
     def get_product_list(self) -> List[Item]:
         pass
 
-    def get_page_content(self,
-                         url: str,
+    @staticmethod
+    def get_page_content(url: str,
                          scroll: bool = False,
                          scroll_timeout: Union[int, float] = 0.3) -> str:
         options = Options()
@@ -31,7 +31,7 @@ class Parser(ABC):
             driver.get(url)
             if scroll:
                 current_page = 1
-                max_pages = 52
+                max_pages = 60
                 while current_page <= max_pages:
                     sleep(2)
                     for i in range(18):
